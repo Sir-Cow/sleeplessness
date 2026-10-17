@@ -1,0 +1,30 @@
+plugins {
+    id 'multiloader-common'
+    id 'xyz.jpenilla.run-paper' version '3.1.0'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Paper'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:${paper_api_version}"
+    compileOnly project(':common')
+
+    constraints {
+        compileOnly 'org.apache.logging.log4j:log4j-api:2.26.1'
+    }
+}
+
+jar {
+    from project(':common').sourceSets.main.output
+}
+
+runServer {
+    minecraftVersion minecraft_version
+    jvmArgs '-Xms2G', '-Xmx2G', '-Dcom.mojang.eula.agree=true'
+}

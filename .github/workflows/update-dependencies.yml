@@ -1,0 +1,598 @@
+name: Update Dependencies
+
+concurrency:
+  group: update-dependencies
+  cancel-in-progress: false
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - 26.3
+          - 26.2
+          - 26.1.x
+          - 1.21.11
+          - 1.21.10
+          - 1.21.6
+          - 1.21.5
+          - 1.21.4
+          - 1.21.3
+          - 1.21.1
+          - 1.20.6
+          - 1.20.4
+          - 1.20.2
+          - 1.20.1
+          - 1.19.4
+          - 1.19.2
+          - 1.19
+          - 1.18.2
+          - 1.18.1
+          - 1.17.1
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.branch }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Detect dependencies
+        id: present
+        shell: bash
+        run: |
+          has_property() {
+            grep -q "^$1=" gradle.properties 2>/dev/null
+          }
+
+          has_plugin() {
+            grep -q "id '$1'" build.gradle 2>/dev/null
+          }
+
+          has_forge_file() {
+            test -f forge/build.gradle
+          }
+
+          has_forge_plugin() {
+            grep -q "id 'net.minecraftforge.gradle'" forge/build.gradle 2>/dev/null
+          }
+
+          has_jarjar_plugin() {
+            grep -q "id 'net.minecraftforge.jarjar'" forge/build.gradle 2>/dev/null
+          }
+
+          has_eventbus_validator() {
+            grep -q "net.minecraftforge:eventbus-validator:" forge/build.gradle 2>/dev/null
+          }
+          
+          has_gradle_wrapper() {
+            test -f gradle/wrapper/gradle-wrapper.properties
+          }
+
+          echo "fabric_api=$(has_property fabric_version && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "fabric_loader=$(has_property fabric_loader_version && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "modmenu=$(has_property modmenu_version && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "forge=$(has_property forge_version && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "neoforge=$(has_property neoforge_version && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "fabric_loom=$(has_plugin net.fabricmc.fabric-loom && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "neoforge_moddev=$(has_plugin net.neoforged.moddev && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "forge_gradle=$(has_forge_file && has_forge_plugin && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "forge_jarjar=$(has_forge_file && has_jarjar_plugin && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "forge_eventbus_validator=$(has_forge_file && has_eventbus_validator && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "gradle_wrapper=$(has_gradle_wrapper && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+          echo "Detected dependencies:"
+          echo "Fabric API: $([[ $(has_property fabric_version && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Fabric Loader: $([[ $(has_property fabric_loader_version && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Mod Menu: $([[ $(has_property modmenu_version && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Forge: $([[ $(has_property forge_version && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "NeoForge: $([[ $(has_property neoforge_version && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Fabric Loom: $([[ $(has_plugin net.fabricmc.fabric-loom && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "NeoForge ModDev: $([[ $(has_plugin net.neoforged.moddev && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "ForgeGradle: $([[ $(has_forge_file && has_forge_plugin && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Forge JarJar: $([[ $(has_forge_file && has_jarjar_plugin && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Forge EventBus Validator: $([[ $(has_forge_file && has_eventbus_validator && echo true || echo false) == true ]] && echo present || echo absent)"
+          echo "Gradle Wrapper: $([[ $(has_gradle_wrapper && echo true || echo false) == true ]] && echo present || echo absent)"
+
+      - name: Read current versions
+        id: current
+        shell: bash
+        run: |
+          get_property() {
+            grep "^$1=" gradle.properties 2>/dev/null | cut -d= -f2- | tr -d '\r' || true
+          }
+
+          get_plugin_version() {
+            grep -oP "id '$1' version '\K[^']+" build.gradle 2>/dev/null || true
+          }
+
+          get_forge_plugin_version() {
+            grep -oP "id ['\"]net\.minecraftforge\.gradle['\"] version ['\"]\K[^'\"]+" forge/build.gradle 2>/dev/null \
+            | sed 's/^\[//' \
+            | cut -d, -f1 \
+            | head -n1 \
+            || true
+          }
+
+          get_jarjar_version() {
+            grep -oP "id 'net\.minecraftforge\.jarjar' version '\K[^']+" forge/build.gradle 2>/dev/null || true
+          }
+
+          get_eventbus_version() {
+            grep -oP "net\.minecraftforge:eventbus-validator:\K[^'\" ]+" forge/build.gradle 2>/dev/null || true
+          }
+          
+          get_gradle_version() {
+            grep -oP '(?<=distributionUrl=https\\://services\.gradle\.org/distributions/gradle-)[^/-]+(?=-bin\.zip)' \
+              gradle/wrapper/gradle-wrapper.properties 2>/dev/null || true
+          }
+
+          echo "mc=$(get_property minecraft_version)" >> "$GITHUB_OUTPUT"
+          echo "fabric_api=$(get_property fabric_version)" >> "$GITHUB_OUTPUT"
+          echo "fabric_loader=$(get_property fabric_loader_version)" >> "$GITHUB_OUTPUT"
+          echo "modmenu=$(get_property modmenu_version)" >> "$GITHUB_OUTPUT"
+          echo "forge=$(get_property forge_version)" >> "$GITHUB_OUTPUT"
+          echo "neoforge=$(get_property neoforge_version)" >> "$GITHUB_OUTPUT"
+          echo "fabric_loom=$(get_plugin_version net.fabricmc.fabric-loom)" >> "$GITHUB_OUTPUT"
+          echo "neoforge_moddev=$(get_plugin_version net.neoforged.moddev)" >> "$GITHUB_OUTPUT"
+          echo "forge_gradle=$(get_forge_plugin_version)" >> "$GITHUB_OUTPUT"
+          echo "forge_jarjar=$(get_jarjar_version)" >> "$GITHUB_OUTPUT"
+          echo "forge_eventbus_validator=$(get_eventbus_version)" >> "$GITHUB_OUTPUT"
+          echo "gradle_wrapper=$(get_gradle_version)" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Fabric API
+        id: fabric_api
+        if: steps.present.outputs.fabric_api == 'true'
+        shell: bash
+        env:
+          MC: ${{ steps.current.outputs.mc }}
+        run: |
+          API_VERSION=$(
+            curl -fsSL https://api.modrinth.com/v2/project/P7dR8mSH/version \
+            | jq -r --arg mc "$MC" '
+                map(select(
+                  (.game_versions | index($mc))
+                  and (.loaders | index("fabric"))
+                ))
+                | sort_by(.date_published)
+                | last
+                | .version_number // empty
+              '
+          )
+
+          if [ -z "$API_VERSION" ]; then
+            echo "No matching Fabric API version found for Minecraft $MC"
+            exit 1
+          fi
+
+          echo "version=$API_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Fabric Loader
+        id: loader
+        if: steps.present.outputs.fabric_loader == 'true'
+        shell: bash
+        run: |
+          LOADER=$(
+            curl -fsSL https://meta.fabricmc.net/v2/versions/loader \
+            | jq -r '.[0].version // empty'
+          )
+
+          if [ -z "$LOADER" ]; then
+            echo "Failed to fetch Fabric Loader version."
+            exit 1
+          fi
+
+          echo "version=$LOADER" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Mod Menu
+        id: modmenu
+        if: steps.present.outputs.modmenu == 'true'
+        shell: bash
+        env:
+          MC: ${{ steps.current.outputs.mc }}
+        run: |
+          MODMENU_VERSION=$(
+            curl -fsSL https://api.modrinth.com/v2/project/mOgUt4GM/version \
+            | jq -r --arg mc "$MC" '
+                map(select(
+                  (.game_versions | index($mc))
+                  and (.loaders | index("fabric"))
+                ))
+                | sort_by(.date_published)
+                | last
+                | .version_number // empty
+              '
+          )
+
+          if [ -z "$MODMENU_VERSION" ]; then
+            echo "No matching Mod Menu version found for Minecraft $MC"
+            exit 1
+          fi
+
+          echo "version=$MODMENU_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Forge
+        id: forge
+        if: steps.present.outputs.forge == 'true'
+        shell: bash
+        env:
+          MC: ${{ steps.current.outputs.mc }}
+        run: |
+          FORGE_VER=$(
+            curl -fsSL https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json \
+            | jq -r --arg mc "$MC" '
+                .promos[$mc + "-latest"]
+                // .promos[$mc + "-recommended"]
+                // empty
+              '
+          )
+
+          if [ -z "$FORGE_VER" ]; then
+            echo "No Forge version found for Minecraft $MC"
+            exit 1
+          fi
+
+          echo "version=$FORGE_VER" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest NeoForge
+        id: neoforge
+        if: steps.present.outputs.neoforge == 'true'
+        shell: bash
+        env:
+          MC: ${{ steps.current.outputs.mc }}
+          CURRENT: ${{ steps.current.outputs.neoforge }}
+        run: |
+          if [[ "$MC" =~ ^1\.([0-9]+)\.([0-9]+)$ ]]; then
+            PREFIX="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+            PATTERN="^${PREFIX//./\\.}\\."
+          elif [[ "$MC" =~ ^1\.([0-9]+)$ ]]; then
+            PREFIX="${BASH_REMATCH[1]}"
+            PATTERN="^${PREFIX//./\\.}\\."
+          else
+            PREFIX="$MC"
+            PATTERN="^${PREFIX//./\\.}\\."
+          fi
+
+          echo "Minecraft version: $MC"
+          echo "NeoForge version pattern: $PATTERN"
+
+          METADATA=$(curl -fsSL \
+            https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml \
+            2>/dev/null || true)
+
+          if [ -z "$METADATA" ]; then
+            echo "No NeoForge Maven metadata available."
+            echo "Skipping NeoForge update for Minecraft $MC."
+            exit 0
+          fi
+
+          NEO_VER=$(
+            echo "$METADATA" \
+            | grep -oP '(?<=<version>)[^<]+' \
+            | grep -E "$PATTERN" \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$NEO_VER" ]; then
+            echo "No NeoForge version found matching Minecraft $MC."
+            echo "Skipping NeoForge update."
+            exit 0
+          fi
+
+          echo "Latest NeoForge for Minecraft $MC: $NEO_VER"
+          echo "Current NeoForge: $CURRENT"
+
+          if [ "$NEO_VER" = "$CURRENT" ]; then
+            echo "NeoForge is already up to date."
+          else
+            echo "NeoForge update available: $CURRENT -> $NEO_VER"
+          fi
+
+          echo "version=$NEO_VER" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Fabric Loom SNAPSHOT
+        id: loom
+        if: steps.present.outputs.fabric_loom == 'true'
+        shell: bash
+        run: |
+          LOOM=$(
+            curl -fsSL https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml \
+            | grep -oP '(?<=<version>)[^<]+(?=</version>)' \
+            | grep 'SNAPSHOT$' \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$LOOM" ]; then
+            echo "Failed to fetch Fabric Loom SNAPSHOT."
+            exit 1
+          fi
+
+          echo "version=$LOOM" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest NeoForge ModDev
+        id: moddev
+        if: steps.present.outputs.neoforge_moddev == 'true'
+        shell: bash
+        run: |
+          MODDEV=$(
+            curl -fsSL https://maven.neoforged.net/releases/net/neoforged/moddev-gradle/maven-metadata.xml \
+            | grep -oP '(?<=<version>)[^<]+(?=</version>)' \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$MODDEV" ]; then
+            echo "Failed to fetch NeoForge ModDev version."
+            exit 1
+          fi
+
+          echo "version=$MODDEV" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest ForgeGradle
+        id: forge_gradle
+        if: steps.present.outputs.forge_gradle == 'true'
+        shell: bash
+        run: |
+          FORGE_GRADLE=$(
+            curl -fsSL https://plugins.gradle.org/m2/net/minecraftforge/gradle/net.minecraftforge.gradle.gradle.plugin/maven-metadata.xml \
+            | grep -oP '(?<=<version>)[^<]+(?=</version>)' \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$FORGE_GRADLE" ]; then
+            echo "Failed to fetch ForgeGradle version."
+            exit 1
+          fi
+
+          echo "version=$FORGE_GRADLE" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Forge JarJar
+        id: forge_jarjar
+        if: steps.present.outputs.forge_jarjar == 'true'
+        shell: bash
+        run: |
+          JARJAR=$(
+            curl -fsSL https://plugins.gradle.org/m2/net/minecraftforge/jarjar/net.minecraftforge.jarjar.gradle.plugin/maven-metadata.xml \
+            | grep -oP '(?<=<version>)[^<]+(?=</version>)' \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$JARJAR" ]; then
+            echo "Failed to fetch Forge JarJar version."
+            exit 1
+          fi
+
+          echo "version=$JARJAR" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Forge EventBus Validator
+        id: forge_eventbus_validator
+        if: steps.present.outputs.forge_eventbus_validator == 'true'
+        shell: bash
+        run: |
+          EVENTBUS=$(
+            curl -fsSL https://maven.minecraftforge.net/net/minecraftforge/eventbus-validator/maven-metadata.xml \
+            | grep -oP '(?<=<version>)[^<]+(?=</version>)' \
+            | sort -V \
+            | tail -n1
+          )
+
+          if [ -z "$EVENTBUS" ]; then
+            echo "Failed to fetch Forge EventBus validator version."
+            exit 1
+          fi
+
+          echo "version=$EVENTBUS" >> "$GITHUB_OUTPUT"
+
+      - name: Find latest Gradle
+        id: gradle
+        if: steps.present.outputs.gradle_wrapper == 'true'
+        shell: bash
+        run: |
+          GRADLE=$(
+            curl -fsSL https://services.gradle.org/versions/current \
+            | jq -r '.version // empty'
+          )
+
+          if [ -z "$GRADLE" ]; then
+            echo "Failed to fetch latest Gradle version."
+            exit 1
+          fi
+
+          echo "version=$GRADLE" >> "$GITHUB_OUTPUT"
+
+      - name: Update properties
+        shell: bash
+        env:
+          HAS_API: ${{ steps.present.outputs.fabric_api }}
+          HAS_LOADER: ${{ steps.present.outputs.fabric_loader }}
+          HAS_MODMENU: ${{ steps.present.outputs.modmenu }}
+          HAS_FORGE: ${{ steps.present.outputs.forge }}
+          HAS_NEOFORGE: ${{ steps.present.outputs.neoforge }}
+          HAS_LOOM: ${{ steps.present.outputs.fabric_loom }}
+          HAS_MODDEV: ${{ steps.present.outputs.neoforge_moddev }}
+          HAS_FORGE_GRADLE: ${{ steps.present.outputs.forge_gradle }}
+          HAS_FORGE_JARJAR: ${{ steps.present.outputs.forge_jarjar }}
+          HAS_FORGE_EVENTBUS: ${{ steps.present.outputs.forge_eventbus_validator }}
+          HAS_GRADLE_WRAPPER: ${{ steps.present.outputs.gradle_wrapper }}
+
+          NEW_API: ${{ steps.fabric_api.outputs.version }}
+          NEW_LOADER: ${{ steps.loader.outputs.version }}
+          NEW_MODMENU: ${{ steps.modmenu.outputs.version }}
+          NEW_FORGE: ${{ steps.forge.outputs.version }}
+          NEW_NEOFORGE: ${{ steps.neoforge.outputs.version }}
+          NEW_LOOM: ${{ steps.loom.outputs.version }}
+          NEW_MODDEV: ${{ steps.moddev.outputs.version }}
+          NEW_FORGE_GRADLE: ${{ steps.forge_gradle.outputs.version }}
+          NEW_FORGE_JARJAR: ${{ steps.forge_jarjar.outputs.version }}
+          NEW_FORGE_EVENTBUS: ${{ steps.forge_eventbus_validator.outputs.version }}
+          NEW_GRADLE: ${{ steps.gradle.outputs.version }}
+
+        run: |
+          if [ "$HAS_API" = "true" ]; then
+            sed -i "s/^fabric_version=.*/fabric_version=${NEW_API}/" gradle.properties
+          fi
+
+          if [ "$HAS_LOADER" = "true" ]; then
+            sed -i "s/^fabric_loader_version=.*/fabric_loader_version=${NEW_LOADER}/" gradle.properties
+          fi
+
+          if [ "$HAS_MODMENU" = "true" ]; then
+            sed -i "s/^modmenu_version=.*/modmenu_version=${NEW_MODMENU}/" gradle.properties
+          fi
+
+          if [ "$HAS_FORGE" = "true" ]; then
+            sed -i "s/^forge_version=.*/forge_version=${NEW_FORGE}/" gradle.properties
+          fi
+
+          if [ "$HAS_NEOFORGE" = "true" ] && [ -n "$NEW_NEOFORGE" ]; then
+            sed -i "s/^neoforge_version=.*/neoforge_version=${NEW_NEOFORGE}/" gradle.properties
+          fi
+
+          if [ "$HAS_LOOM" = "true" ]; then
+            sed -i "s/id 'net\.fabricmc\.fabric-loom' version '[^']*'/id 'net.fabricmc.fabric-loom' version '${NEW_LOOM}'/" build.gradle
+          fi
+
+          if [ "$HAS_MODDEV" = "true" ]; then
+            sed -i "s/id 'net\.neoforged\.moddev' version '[^']*'/id 'net.neoforged.moddev' version '${NEW_MODDEV}'/" build.gradle
+          fi
+
+          if [ "$HAS_FORGE_GRADLE" = "true" ]; then
+            sed -i -E "s/(id ['\"]net\.minecraftforge\.gradle['\"] version ['\"])[^'\"]+(['\"])/\1${NEW_FORGE_GRADLE}\2/" forge/build.gradle
+          fi
+
+          if [ "$HAS_FORGE_JARJAR" = "true" ]; then
+            sed -i "s/id 'net\.minecraftforge\.jarjar' version '[^']*'/id 'net.minecraftforge.jarjar' version '${NEW_FORGE_JARJAR}'/" forge/build.gradle
+          fi
+
+          if [ "$HAS_FORGE_EVENTBUS" = "true" ]; then
+            sed -i "s/net\.minecraftforge:eventbus-validator:[^'\" ]*/net.minecraftforge:eventbus-validator:${NEW_FORGE_EVENTBUS}/" forge/build.gradle
+          fi
+          
+          if [ "$HAS_GRADLE_WRAPPER" = "true" ]; then
+            sed -i "s#distributionUrl=https\\\\://services.gradle.org/distributions/gradle-[^-]*-bin.zip#distributionUrl=https\\\\://services.gradle.org/distributions/gradle-${NEW_GRADLE}-bin.zip#" gradle/wrapper/gradle-wrapper.properties
+          fi
+
+      - name: Check for changes and build PR body
+        id: changes
+        shell: bash
+        env:
+          HAS_API: ${{ steps.present.outputs.fabric_api }}
+          HAS_LOADER: ${{ steps.present.outputs.fabric_loader }}
+          HAS_MODMENU: ${{ steps.present.outputs.modmenu }}
+          HAS_FORGE: ${{ steps.present.outputs.forge }}
+          HAS_NEOFORGE: ${{ steps.present.outputs.neoforge }}
+          HAS_LOOM: ${{ steps.present.outputs.fabric_loom }}
+          HAS_MODDEV: ${{ steps.present.outputs.neoforge_moddev }}
+          HAS_FORGE_GRADLE: ${{ steps.present.outputs.forge_gradle }}
+          HAS_FORGE_JARJAR: ${{ steps.present.outputs.forge_jarjar }}
+          HAS_FORGE_EVENTBUS: ${{ steps.present.outputs.forge_eventbus_validator }}
+          HAS_GRADLE_WRAPPER: ${{ steps.present.outputs.gradle_wrapper }}
+
+          OLD_API: ${{ steps.current.outputs.fabric_api }}
+          NEW_API: ${{ steps.fabric_api.outputs.version }}
+          OLD_LOADER: ${{ steps.current.outputs.fabric_loader }}
+          NEW_LOADER: ${{ steps.loader.outputs.version }}
+          OLD_MODMENU: ${{ steps.current.outputs.modmenu }}
+          NEW_MODMENU: ${{ steps.modmenu.outputs.version }}
+          OLD_FORGE: ${{ steps.current.outputs.forge }}
+          NEW_FORGE: ${{ steps.forge.outputs.version }}
+          OLD_NEOFORGE: ${{ steps.current.outputs.neoforge }}
+          NEW_NEOFORGE: ${{ steps.neoforge.outputs.version }}
+          OLD_LOOM: ${{ steps.current.outputs.fabric_loom }}
+          NEW_LOOM: ${{ steps.loom.outputs.version }}
+          OLD_MODDEV: ${{ steps.current.outputs.neoforge_moddev }}
+          NEW_MODDEV: ${{ steps.moddev.outputs.version }}
+          OLD_FORGE_GRADLE: ${{ steps.current.outputs.forge_gradle }}
+          NEW_FORGE_GRADLE: ${{ steps.forge_gradle.outputs.version }}
+          OLD_FORGE_JARJAR: ${{ steps.current.outputs.forge_jarjar }}
+          NEW_FORGE_JARJAR: ${{ steps.forge_jarjar.outputs.version }}
+          OLD_FORGE_EVENTBUS: ${{ steps.current.outputs.forge_eventbus_validator }}
+          NEW_FORGE_EVENTBUS: ${{ steps.forge_eventbus_validator.outputs.version }}
+          OLD_GRADLE: ${{ steps.current.outputs.gradle_wrapper }}
+          NEW_GRADLE: ${{ steps.gradle.outputs.version }}
+
+        run: |
+          if git diff --quiet gradle.properties build.gradle forge/build.gradle gradle/wrapper/gradle-wrapper.properties; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          BODY="Automated dependency updates"
+
+          if [ "$HAS_API" = "true" ] && [ "$OLD_API" != "$NEW_API" ]; then
+            BODY="${BODY}"$'\n'"- Fabric API: \`${OLD_API}\` → \`${NEW_API}\`"
+          fi
+
+          if [ "$HAS_LOADER" = "true" ] && [ "$OLD_LOADER" != "$NEW_LOADER" ]; then
+            BODY="${BODY}"$'\n'"- Fabric Loader: \`${OLD_LOADER}\` → \`${NEW_LOADER}\`"
+          fi
+
+          if [ "$HAS_MODMENU" = "true" ] && [ "$OLD_MODMENU" != "$NEW_MODMENU" ]; then
+            BODY="${BODY}"$'\n'"- Mod Menu: \`${OLD_MODMENU}\` → \`${NEW_MODMENU}\`"
+          fi
+
+          if [ "$HAS_FORGE" = "true" ] && [ "$OLD_FORGE" != "$NEW_FORGE" ]; then
+            BODY="${BODY}"$'\n'"- Forge: \`${OLD_FORGE}\` → \`${NEW_FORGE}\`"
+          fi
+
+          if [ "$HAS_NEOFORGE" = "true" ] && [ -n "$NEW_NEOFORGE" ] && [ "$OLD_NEOFORGE" != "$NEW_NEOFORGE" ]; then
+            BODY="${BODY}"$'\n'"- NeoForge: \`${OLD_NEOFORGE}\` → \`${NEW_NEOFORGE}\`"
+          fi
+
+          if [ "$HAS_LOOM" = "true" ] && [ "$OLD_LOOM" != "$NEW_LOOM" ]; then
+            BODY="${BODY}"$'\n'"- Fabric Loom: \`${OLD_LOOM}\` → \`${NEW_LOOM}\`"
+          fi
+
+          if [ "$HAS_MODDEV" = "true" ] && [ "$OLD_MODDEV" != "$NEW_MODDEV" ]; then
+            BODY="${BODY}"$'\n'"- NeoForge ModDev: \`${OLD_MODDEV}\` → \`${NEW_MODDEV}\`"
+          fi
+
+          if [ "$HAS_FORGE_GRADLE" = "true" ] && [ -n "$NEW_FORGE_GRADLE" ] && [ "$OLD_FORGE_GRADLE" != "$NEW_FORGE_GRADLE" ]; then
+            BODY="${BODY}"$'\n'"- ForgeGradle: \`${OLD_FORGE_GRADLE}\` → \`${NEW_FORGE_GRADLE}\`"
+          fi
+
+          if [ "$HAS_FORGE_JARJAR" = "true" ] && [ "$OLD_FORGE_JARJAR" != "$NEW_FORGE_JARJAR" ]; then
+            BODY="${BODY}"$'\n'"- Forge JarJar: \`${OLD_FORGE_JARJAR}\` → \`${NEW_FORGE_JARJAR}\`"
+          fi
+
+          if [ "$HAS_FORGE_EVENTBUS" = "true" ] && [ "$OLD_FORGE_EVENTBUS" != "$NEW_FORGE_EVENTBUS" ]; then
+            BODY="${BODY}"$'\n'"- Forge EventBus Validator: \`${OLD_FORGE_EVENTBUS}\` → \`${NEW_FORGE_EVENTBUS}\`"
+          fi
+          
+          if [ "$HAS_GRADLE_WRAPPER" = "true" ] && [ "$OLD_GRADLE" != "$NEW_GRADLE" ]; then
+            BODY="${BODY}"$'\n'"- Gradle: \`${OLD_GRADLE}\` → \`${NEW_GRADLE}\`"
+          fi
+
+          {
+            echo "pr_body<<EOF"
+            echo "$BODY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          base: ${{ matrix.branch }}
+          branch: update-dependencies-${{ matrix.branch }}
+          commit-message: bump dependencies (${{ matrix.branch }})
+          title: bump dependencies (${{ matrix.branch }})
+          body: ${{ steps.changes.outputs.pr_body }}
