@@ -17,7 +17,7 @@
     "environment": "*",
     "entrypoints": {
         "main": [
-            "com.example.examplemod.FabricExampleMod"
+            "sircow.sleeplessness.FabricSleeplessness"
         ]
     },
     "mixins": [
@@ -32,7 +32,7 @@
     },
     "custom": {
         "modmenu": {
-            "update_checker": false
+            "update_checker": true
         }
     }
 }

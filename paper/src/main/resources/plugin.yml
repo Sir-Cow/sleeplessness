@@ -1,6 +1,0 @@
-name: ${mod_id}
-version: '${version}'
-
-main: com.example.exampleplugin.PaperExamplePlugin
-api-version: '${minecraft_version}'
-load: POSTWORLD
