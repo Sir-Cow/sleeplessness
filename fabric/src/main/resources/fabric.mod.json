@@ -8,9 +8,9 @@
         "${mod_author}"
     ],
     "contact": {
-        "homepage": "",
-        "sources": "",
-        "issues": ""
+        "homepage": "https://teampreserved.com/sleeplessness",
+        "sources": "https://github.com/Sir-Cow/sleeplessness",
+        "issues": "https://github.com/Sir-Cow/sleeplessness/issues"
     },
     "license": "${license}",
     "icon": "icon.png",
@@ -32,6 +32,11 @@
     },
     "custom": {
         "modmenu": {
+            "links": {
+                "modmenu.website": "https://teampreserved.com/sleeplessness",
+                "modmenu.modrinth": "https://modrinth.com/project/iFcpR7Js",
+                "modmenu.curseforge": "https://curseforge.com/minecraft/mc-mods/sleeplessness"
+            },
             "update_checker": true
         }
     }
