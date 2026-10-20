@@ -1,0 +1,161 @@
+package sircow.sleeplessness.other;
+
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.NotNull;
+import sircow.sleeplessness.Constants;
+import sircow.sleeplessness.effect.ModEffects;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+// used for handling inventory keeping when dying with well rested effect
+public class TempInventoryStorage {
+    private static final Map<UUID, ListTag> SAVED_INVENTORIES = new HashMap<>();
+    private static final Map<UUID, Integer> SAVED_EXPERIENCE_LEVELS = new HashMap<>();
+    private static final Map<UUID, Float> SAVED_EXPERIENCE_PROGRESS = new HashMap<>();
+    private static final Map<UUID, Boolean> PLAYER_HAD_WELL_RESTED_ON_DEATH = new HashMap<>();
+    private static final Map<UUID, ListTag> SAVED_CURIOS = new HashMap<>();
+
+    public static void savePlayerInventory(Player player) {
+        if (player.hasEffect(ModEffects.wellRestedHolder())) {
+            ListTag inventoryTag = new ListTag();
+            Inventory inventory = player.getInventory();
+
+            for (int i = 0; i < inventory.getContainerSize(); ++i) {
+                ItemStack stack = inventory.getItem(i);
+                if (!stack.isEmpty()) {
+                    CompoundTag tag = new CompoundTag();
+                    tag.putByte("Slot", (byte) i);
+                    var ops = RegistryOps.create(NbtOps.INSTANCE, player.level().registryAccess());
+                    ItemStack.CODEC.encodeStart(ops, stack)
+                            .resultOrPartial(error -> Constants.LOG.error("Failed to encode stack: {}", error))
+                            .ifPresent(encoded -> tag.put("Item", encoded));
+                    inventoryTag.add(tag);
+                }
+            }
+
+            for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+                ItemStack stack = player.getItemBySlot(slot);
+                if (!stack.isEmpty()) {
+                    CompoundTag tag = getCompoundTag(slot);
+                    var ops = RegistryOps.create(NbtOps.INSTANCE, player.level().registryAccess());
+                    ItemStack.CODEC.encodeStart(ops, stack)
+                            .resultOrPartial(error -> Constants.LOG.error("Failed to encode stack: {}", error))
+                            .ifPresent(encoded -> tag.put("Item", encoded));
+                    inventoryTag.add(tag);
+                }
+            }
+
+            ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
+            if (!offhand.isEmpty()) {
+                CompoundTag tag = new CompoundTag();
+                tag.putByte("Slot", (byte) 150);
+                var ops = RegistryOps.create(NbtOps.INSTANCE, player.level().registryAccess());
+                ItemStack.CODEC.encodeStart(ops, offhand)
+                        .resultOrPartial(error -> Constants.LOG.error("Failed to encode stack: {}", error))
+                        .ifPresent(encoded -> tag.put("Item", encoded));
+                inventoryTag.add(tag);
+            }
+            SAVED_INVENTORIES.put(player.getUUID(), inventoryTag);
+
+            if (player instanceof ServerPlayer serverPlayer) {
+                SAVED_EXPERIENCE_LEVELS.put(serverPlayer.getUUID(), serverPlayer.experienceLevel);
+                SAVED_EXPERIENCE_PROGRESS.put(serverPlayer.getUUID(), serverPlayer.experienceProgress);
+            }
+
+            PLAYER_HAD_WELL_RESTED_ON_DEATH.put(player.getUUID(), true);
+        }
+    }
+
+    public static void saveCurios(UUID uuid, ListTag curiosTag) {
+        SAVED_CURIOS.put(uuid, curiosTag);
+    }
+
+    public static ListTag takeCurios(UUID uuid) {
+        return SAVED_CURIOS.remove(uuid);
+    }
+
+    private static @NotNull CompoundTag getCompoundTag(EquipmentSlot slot) {
+        CompoundTag tag = new CompoundTag();
+        byte id = switch (slot) {
+            case FEET -> 100;
+            case LEGS -> 101;
+            case CHEST -> 102;
+            case HEAD -> 103;
+            default -> throw new IllegalStateException("Unexpected EquipmentSlot: " + slot);
+        };
+        tag.putByte("Slot", id);
+        return tag;
+    }
+
+    public static boolean restorePlayerInventory(ServerPlayer player) {
+        UUID uuid = player.getUUID();
+
+        ListTag tagList = SAVED_INVENTORIES.remove(uuid);
+        if (tagList != null && !tagList.isEmpty()) {
+            Inventory inventory = player.getInventory();
+            Map<Integer, ItemStack> restored = new HashMap<>();
+            Map<EquipmentSlot, ItemStack> equipment = new HashMap<>();
+            ItemStack offhand = ItemStack.EMPTY;
+            var ops = RegistryOps.create(NbtOps.INSTANCE, player.level().registryAccess());
+
+            for (Tag value : tagList) {
+                if (!(value instanceof CompoundTag tag)) continue;
+
+                int slotId = tag.getByteOr("Slot", (byte) 0) & 255;
+
+                Optional<ItemStack> stackOpt = Optional.ofNullable(tag.get("Item"))
+                        .flatMap(itemTag -> ItemStack.CODEC.decode(ops, itemTag).result())
+                        .map(Pair::getFirst);
+
+                if (stackOpt.isEmpty()) continue;
+
+                ItemStack stack = stackOpt.get();
+                if (stack.isEmpty()) continue;
+
+                if (slotId < inventory.getContainerSize()) restored.put(slotId, stack);
+                else if (slotId >= 100 && slotId < 104) {
+                    EquipmentSlot slot = switch (slotId) {
+                        case 100 -> EquipmentSlot.FEET;
+                        case 101 -> EquipmentSlot.LEGS;
+                        case 102 -> EquipmentSlot.CHEST;
+                        case 103 -> EquipmentSlot.HEAD;
+                        default -> null;
+                    };
+                    equipment.put(slot, stack);
+                }
+                else if (slotId == 150) offhand = stack;
+            }
+
+            if (!restored.isEmpty() || !equipment.isEmpty() || !offhand.isEmpty()) {
+                inventory.clearContent();
+
+                restored.forEach(inventory::setItem);
+                equipment.forEach(player::setItemSlot);
+
+                if (!offhand.isEmpty()) player.setItemSlot(EquipmentSlot.OFFHAND, offhand);
+            }
+        }
+
+        if (SAVED_EXPERIENCE_LEVELS.containsKey(uuid)) player.experienceLevel = SAVED_EXPERIENCE_LEVELS.remove(uuid);
+        if (SAVED_EXPERIENCE_PROGRESS.containsKey(uuid)) player.experienceProgress = SAVED_EXPERIENCE_PROGRESS.remove(uuid);
+
+        boolean hadWellRestedEffectOnDeath = PLAYER_HAD_WELL_RESTED_ON_DEATH.remove(uuid) != null;
+
+        if (hadWellRestedEffectOnDeath) player.removeEffect(ModEffects.wellRestedHolder());
+
+        return hadWellRestedEffectOnDeath;
+    }
+}

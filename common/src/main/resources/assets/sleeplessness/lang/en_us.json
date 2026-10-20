@@ -1,0 +1,20 @@
+{
+  "item.sleeplessness.dreamcatcher": "Dreamcatcher",
+  "item.sleeplessness.hollow_twine": "Hollow Twine",
+
+  "itemgroup.sleeplessness.items": "Sleeplessness",
+
+  "block.minecraft.bed.no_dreamcatcher": "You may not sleep now; nightmares haunt you in your sleep",
+
+  "effect.sleeplessness.well_rested": "Well Rested",
+  "effect.sleeplessness.well_rested_awake": "You awaken feeling well rested",
+  "effect.sleeplessness.well_rested_awake_not_sleeping": "A new day dawns over you. Thank %s!",
+  "effect.sleeplessness.well_rested_consume": "Maybe that was just a bad dream...",
+
+  "advancements.sleeplessness.adventure.bed_spawn_point.title": "Spawn Setter",
+  "advancements.sleeplessness.adventure.bed_spawn_point.description": "Interact with a Bed to change your respawn point",
+  "advancements.sleeplessness.adventure.kill_a_phantom.title": "No More Nightmares",
+  "advancements.sleeplessness.adventure.kill_a_phantom.description": "Kill a Phantom",
+
+  "info.sleeplessness.conflict": "%s is incompatible with %s. Remove one of them."
+}

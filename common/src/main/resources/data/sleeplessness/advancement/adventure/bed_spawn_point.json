@@ -1,0 +1,26 @@
+{
+  "parent": "minecraft:adventure/root",
+  "criteria": {
+    "bed_spawn_point": {
+      "trigger": "sleeplessness:bed_spawn_point"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.sleeplessness.adventure.bed_spawn_point.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:red_bed"
+    },
+    "title": {
+      "translate": "advancements.sleeplessness.adventure.bed_spawn_point.title"
+    }
+  },
+  "requirements": [
+    [
+      "bed_spawn_point"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "sleeplessness:hollow_twine",
+    "B": "minecraft:stick",
+    "C": "minecraft:feather"
+  },
+  "pattern": [
+    " B ",
+    "BAB",
+    "CBC"
+  ],
+  "result": {
+    "count": 1,
+    "id": "sleeplessness:dreamcatcher"
+  }
+}

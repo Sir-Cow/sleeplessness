@@ -30,6 +30,9 @@
         "minecraft": "~${minecraft_version}",
         "java": ">=${java_version}"
     },
+    "breaks": {
+        "pinferno": "*"
+    },
     "custom": {
         "modmenu": {
             "links": {

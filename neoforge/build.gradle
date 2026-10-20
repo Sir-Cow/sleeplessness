@@ -3,6 +3,18 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
+repositories {
+    maven {
+        name = "Illusive Soulworks maven"
+        url = "https://maven.theillusivec4.top/"
+    }
+}
+
+dependencies {
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+    runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+}
+
 neoForge {
     version = neoforge_version
     def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')

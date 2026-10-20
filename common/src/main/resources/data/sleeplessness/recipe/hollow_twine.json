@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "#minecraft:wooden_slabs",
+    "B": "minecraft:phantom_membrane"
+  },
+  "pattern": [
+    "AAA",
+    "BBB",
+    "AAA"
+  ],
+  "result": {
+    "count": 1,
+    "id": "sleeplessness:hollow_twine"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "sleeplessness:adventure/bed_spawn_point",
+  "criteria": {
+    "minecraft:phantom": {
+      "conditions": {
+        "entity": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:entity_type": "minecraft:phantom"
+          }
+        }
+      },
+      "trigger": "minecraft:player_killed_entity"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.sleeplessness.adventure.kill_a_phantom.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:phantom_membrane"
+    },
+    "title": {
+      "translate": "advancements.sleeplessness.adventure.kill_a_phantom.title"
+    }
+  },
+  "requirements": [
+    [
+      "minecraft:phantom"
+    ]
+  ],
+  "sends_telemetry_event": true
+}
