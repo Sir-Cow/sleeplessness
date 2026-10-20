@@ -21,7 +21,7 @@ While affected by Well Rested, the player obtains keep inventory until they die 
 
 Sleeplessness is free to be used in any custom mod packs as long as credit is provided. 
 
-Sleeplessness has compatability with the following mods:
+Sleeplessness has compatibility with the following mods:
 
 - [Curios](https://modrinth.com/mod/curios)
 
