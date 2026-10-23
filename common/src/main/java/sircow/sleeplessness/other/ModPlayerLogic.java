@@ -25,7 +25,8 @@ public abstract class ModPlayerLogic {
         ItemStack offHandItem = player.getItemInHand(InteractionHand.OFF_HAND);
         boolean holdingDreamcatcher = mainHandItem.getItem() == ModItems.DREAMCATCHER.get()
                 || offHandItem.getItem() == ModItems.DREAMCATCHER.get()
-                || Services.CURIOS.hasCurio(player, stack -> stack.is(ModItems.DREAMCATCHER.get()));
+                || Services.CURIOS.hasCurio(player, stack -> stack.is(ModItems.DREAMCATCHER.get()))
+                || Services.TRINKETS.hasTrinket(player, stack -> stack.is(ModItems.DREAMCATCHER.get()));
 
         if (!holdingDreamcatcher) {
             player.sendOverlayMessage(Component.translatable("block.minecraft.bed.no_dreamcatcher"));
@@ -41,7 +42,10 @@ public abstract class ModPlayerLogic {
 
         if (main.is(ModItems.DREAMCATCHER.get())) main.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
         else if (off.is(ModItems.DREAMCATCHER.get())) off.hurtAndBreak(1, player, EquipmentSlot.OFFHAND);
-        else Services.CURIOS.damageCurio(player, stack -> stack.is(ModItems.DREAMCATCHER.get()), 1);
+        else if (Services.CURIOS.hasCurio(player, stack -> stack.is(ModItems.DREAMCATCHER.get()))) {
+            Services.CURIOS.damageCurio(player, stack -> stack.is(ModItems.DREAMCATCHER.get()), 1);
+        }
+        else Services.TRINKETS.damageTrinket(player, stack -> stack.is(ModItems.DREAMCATCHER.get()), 1);
     }
 
     public static void applyWellRested(Player player) {

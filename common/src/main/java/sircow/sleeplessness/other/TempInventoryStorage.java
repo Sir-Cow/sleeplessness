@@ -27,7 +27,9 @@ public class TempInventoryStorage {
     private static final Map<UUID, Float> SAVED_EXPERIENCE_PROGRESS = new HashMap<>();
     private static final Map<UUID, Boolean> PLAYER_HAD_WELL_RESTED_ON_DEATH = new HashMap<>();
     private static final Map<UUID, ListTag> SAVED_CURIOS = new HashMap<>();
+    private static final Map<UUID, ListTag> SAVED_TRINKETS = new HashMap<>();
 
+    // save inventory
     public static void savePlayerInventory(Player player) {
         if (player.hasEffect(ModEffects.wellRestedHolder())) {
             ListTag inventoryTag = new ListTag();
@@ -79,14 +81,6 @@ public class TempInventoryStorage {
         }
     }
 
-    public static void saveCurios(UUID uuid, ListTag curiosTag) {
-        SAVED_CURIOS.put(uuid, curiosTag);
-    }
-
-    public static ListTag takeCurios(UUID uuid) {
-        return SAVED_CURIOS.remove(uuid);
-    }
-
     private static @NotNull CompoundTag getCompoundTag(EquipmentSlot slot) {
         CompoundTag tag = new CompoundTag();
         byte id = switch (slot) {
@@ -100,6 +94,22 @@ public class TempInventoryStorage {
         return tag;
     }
 
+    // mod compat
+    public static void saveCurios(UUID uuid, ListTag curiosTag) {
+        SAVED_CURIOS.put(uuid, curiosTag);
+    }
+    public static ListTag takeCurios(UUID uuid) {
+        return SAVED_CURIOS.remove(uuid);
+    }
+
+    public static void saveTrinkets(UUID uuid, ListTag trinketsTag) {
+        SAVED_TRINKETS.put(uuid, trinketsTag);
+    }
+    public static ListTag takeTrinkets(UUID uuid) {
+        return SAVED_TRINKETS.remove(uuid);
+    }
+
+    // load inventory
     public static boolean restorePlayerInventory(ServerPlayer player) {
         UUID uuid = player.getUUID();
 

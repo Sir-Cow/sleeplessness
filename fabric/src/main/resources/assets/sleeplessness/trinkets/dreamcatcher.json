@@ -1,0 +1,24 @@
+{
+  "target": [
+    "sleeplessness:dreamcatcher"
+  ],
+  "render": [
+    {
+      "type": "item",
+      "model_part": "left_leg",
+      "offset": [1.2, 0.7, 0],
+      "transformation": {
+        "translation": [0, 0, 0],
+        "left_rotation": {
+          "axis": [0, 1, 0],
+          "angle": 1.5708
+        },
+        "scale": [0.5, 0.5, 0.5],
+        "right_rotation": {
+          "axis": [0, 1, 0],
+          "angle": 0
+        }
+      }
+    }
+  ]
+}
