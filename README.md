@@ -24,6 +24,7 @@ Sleeplessness is free to be used in any custom mod packs as long as credit is pr
 Sleeplessness has compatibility with the following mods:
 
 - [Curios](https://modrinth.com/mod/curios)
+- [Trinkets Updated](https://modrinth.com/mod/trinkets-updated)
 
 Compatibility with other mods has not been tested for.
 
