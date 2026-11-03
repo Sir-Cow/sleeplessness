@@ -2,8 +2,8 @@ package sircow.sleeplessness.trigger;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import net.minecraft.advancements.predicates.ContextAwarePredicate;
-import net.minecraft.advancements.triggers.SimpleCriterionTrigger;
+import net.minecraft.advancements.criterion.ContextAwarePredicate;
+import net.minecraft.advancements.criterion.SimpleCriterionTrigger;
 import net.minecraft.server.level.ServerPlayer;
 import org.jspecify.annotations.NonNull;
 

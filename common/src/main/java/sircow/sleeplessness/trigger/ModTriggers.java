@@ -1,6 +1,6 @@
 package sircow.sleeplessness.trigger;
 
-import net.minecraft.advancements.triggers.CriterionTrigger;
+import net.minecraft.advancements.CriterionTrigger;
 import net.minecraft.resources.Identifier;
 import sircow.sleeplessness.Constants;
 
