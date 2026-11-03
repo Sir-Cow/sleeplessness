@@ -4,8 +4,8 @@
   "package": "sircow.sleeplessness.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "AbstractBedBlockMixin",
     "AnvilMenuMixin",
+    "BedBlockMixin",
     "GrindstoneInputSlotMixin",
     "ItemCombinerMenuAccessor",
     "PlayerMixin",
